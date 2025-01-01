@@ -1,4 +1,5 @@
-import prisma from "../lib/prisma.js";
+import Chat from "../models/Chat.js";
+import Message from "../models/Message.js";
 
 export const addMessage = async (req, res) => {
   const tokenUserId = req.userId;
@@ -6,34 +7,24 @@ export const addMessage = async (req, res) => {
   const text = req.body.text;
 
   try {
-    const chat = await prisma.chat.findUnique({
-      where: {
-        id: chatId,
-        userIDs: {
-          hasSome: [tokenUserId],
-        },
-      },
+    const chat = await Chat.findOne({
+      _id: chatId,
+      users: tokenUserId,
     });
 
     if (!chat) return res.status(404).json({ message: "Chat not found!" });
 
-    const message = await prisma.message.create({
-      data: {
-        text,
-        chatId,
-        userId: tokenUserId,
-      },
+    const message = new Message({
+      text,
+      chat: chatId,
+      userId: tokenUserId,
     });
 
-    await prisma.chat.update({
-      where: {
-        id: chatId,
-      },
-      data: {
-        seenBy: [tokenUserId],
-        lastMessage: text,
-      },
-    });
+    await message.save();
+
+    chat.seenBy = [tokenUserId];
+    chat.lastMessage = text;
+    await chat.save();
 
     res.status(200).json(message);
   } catch (err) {

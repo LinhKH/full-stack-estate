@@ -1,24 +1,26 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-// import prisma from "../lib/prisma.js";
-import User from "../models/User.js";
+import prisma from "../lib/prisma.js";
 
 export const register = async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
     // HASH THE PASSWORD
+
     const hashedPassword = await bcrypt.hash(password, 10);
+
     console.log(hashedPassword);
 
     // CREATE A NEW USER AND SAVE TO DB
-    const newUser = new User({
-      username,
-      email,
-      password: hashedPassword,
+    const newUser = await prisma.user.create({
+      data: {
+        username,
+        email,
+        password: hashedPassword,
+      },
     });
 
-    await newUser.save();
     console.log(newUser);
 
     res.status(201).json({ message: "User created successfully" });
@@ -33,17 +35,22 @@ export const login = async (req, res) => {
 
   try {
     // CHECK IF THE USER EXISTS
-    const user = await User.findOne({ username });
+
+    const user = await prisma.user.findUnique({
+      where: { username },
+    });
 
     if (!user) return res.status(400).json({ message: "Invalid Credentials!" });
 
     // CHECK IF THE PASSWORD IS CORRECT
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid)
       return res.status(400).json({ message: "Invalid Credentials!" });
 
     // GENERATE COOKIE TOKEN AND SEND TO THE USER
+
     // res.setHeader("Set-Cookie", "test=" + "myValue").json("success")
     const age = 1000 * 60 * 60 * 24 * 7;
 
